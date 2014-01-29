@@ -17,6 +17,8 @@ using std::ifstream;
 #include <string>
 using namespace std;
 #include <boost/tokenizer.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/unordered_map.hpp>
 using namespace boost;
 
@@ -56,28 +58,25 @@ int main(int argc, const char * argv[])
     vector<string> lines;
     vector<string>::iterator myIterator;
     
-    typedef boost::unordered_map<int, int[11]> unordered_map;
-    unordered_map map;
+    
     
     while(!fin2.eof())
     {
         getline(fin2, line2);
         lines.push_back(line2);
-        int offsets2[] = {9,4,3,5,7,4,4,4,4,4,12};
-        offset_separator f(offsets2, offsets2+11);
-        tokenizer<offset_separator> tok2(line2,f);
         
-        string strArray2[11];
-        copy(tok2.begin(), tok2.end(), strArray2);
+                
     }
     
     fin2.close();
     
     //First pass
-    cout << "Start ..." << endl;
+    cout << "Started Processing ";
     //skip the first two lines in first file
     getline(fin1, line1);
     getline(fin1, line1);
+    
+    int counter = 0;
     
     // read each line of file 1
     while (!fin1.eof())
@@ -86,7 +85,7 @@ int main(int argc, const char * argv[])
         getline(fin1, line1);
         
         // parse the line into tokens using offsets
-        int offsets[] = {9,4,3,5,5,4,4,4,4,4,12};
+        int offsets[] = {10,3,3,5,5,4,4,4,4,4,12};
         offset_separator f(offsets, offsets+11);
         tokenizer<offset_separator> tok1(line1,f);
         
@@ -94,8 +93,22 @@ int main(int argc, const char * argv[])
         string strArray[11];
         copy(tok1.begin(), tok1.end(), strArray);
         int storeVar1[10];
-        for (int i = 1; i < 11; i++)
-            sscanf(strArray[i].c_str(), "%d", &storeVar1[i - 1]);
+        std::fill(storeVar1, storeVar1+10, -1);
+        for (int i = 1; i < 11; i++) {
+            
+            boost::algorithm::trim(strArray[i]); // get rid of surrounding whitespace
+            if (!strArray[i].empty()) {
+                try
+                {
+                    storeVar1[i - 1] = boost::lexical_cast<int>(strArray[i]);
+                }
+                catch (boost::bad_lexical_cast)
+                {
+                    cout << "Something went wrong during lexical cast operation while reading OLD_ID " << strArray[0] << endl;
+                    return 1;
+                }
+            }
+        }
         
         bool match = false;
         
@@ -105,15 +118,29 @@ int main(int argc, const char * argv[])
             myIterator++)
         {
             // parse the line into tokens using offsets
-            int offsets2[] = {9,4,3,5,7,4,4,4,4,4,12};
+            int offsets2[] = {10,3,3,5,7,4,4,4,4,4,12};
             offset_separator f(offsets2, offsets2+11);
             tokenizer<offset_separator> tok2(*myIterator,f);
             
             string strArray2[11];
             copy(tok2.begin(), tok2.end(), strArray2);
             int storeVar2[10];
-            for (int i = 1; i < 11; i++)
-               sscanf(strArray2[i].c_str(), "%d", &storeVar2[i - 1]);
+            std::fill(storeVar2, storeVar2+10, -1);
+            for (int i = 1; i < 11; i++) {
+                
+                boost::algorithm::trim(strArray2[i]); // get rid of surrounding whitespace
+                if (!strArray2[i].empty()) {
+                    try
+                    {
+                        storeVar2[i - 1] = boost::lexical_cast<int>(strArray2[i]);
+                    }
+                    catch (boost::bad_lexical_cast)
+                    {
+                        cout << "Something went wrong during lexical cast operation while processing NEW_ID " << strArray2[0] << endl;
+                        return 1;
+                    }
+                }
+            }
             
             //correct variable V4 (Year)
             storeVar2[3] = storeVar2[3] - 1900;
@@ -121,17 +148,22 @@ int main(int argc, const char * argv[])
             // process (compare) the tokens and write to file
             if (storeVar1[2] == storeVar2[2] && storeVar1[3] == storeVar2[3] && storeVar1[4] == storeVar2[4] && storeVar1[5] == storeVar2[5] && storeVar1[6] == storeVar2[6] && storeVar1[7] == storeVar2[7] && storeVar1[8] == storeVar2[8] && storeVar1[9] == storeVar2[9])
             {
-                fout2 << strArray[0] << "  " << strArray2[0] << endl;
+                if (storeVar2[0] == -1 || storeVar2[1] == -1) {
+                    fout2 << strArray[0] << "  " << strArray2[0] << endl;
+                    match = true;
+                }
                 if (storeVar1[0] == storeVar2[0] && storeVar1[1] == storeVar2[1])
                     fout1 << strArray[0] << "  " << strArray2[0] << endl;
-                match = true;
                 break;
             }
-            
         }
         
         if (!match)
             fout2 << strArray[0] << endl;
+        
+        counter++;
+        if (counter % 1000 == 0)
+            cout << ". ";
     }
     
     //Done!
@@ -139,7 +171,7 @@ int main(int argc, const char * argv[])
     fout1.close();
     fout2.close();
     
-    cout << "Reached end!" << endl;
+    cout << endl << "Reached end!" << endl;
     return 0;
 }
 
